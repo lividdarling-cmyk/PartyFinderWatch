@@ -3,15 +3,16 @@
     "Author": "lividdarling-cmyk",
     "Name": "Party Finder Watch",
     "InternalName": "PartyFinderWatch",
-    "AssemblyVersion": "0.6.0.0",
+    "AssemblyVersion": "0.6.1.0",
     "DalamudApiLevel": 15,
     "ApplicableVersion": "any",
     "Punchline": "Get in-game alerts for Party Finder listings that match your watches.",
     "Description": "Browse listings received by FFXIV and watch for categories, duties, and keywords. Use /pfwatch to open the window.",
     "RepoUrl": "https://github.com/lividdarling-cmyk/PartyFinderWatch",
     "IconUrl": "https://raw.githubusercontent.com/lividdarling-cmyk/PartyFinderWatch/main/images/icon.png",
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/lividdarling-cmyk/PartyFinderWatch/main/releases/PartyFinderWatch-0.6.0.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/lividdarling-cmyk/PartyFinderWatch/main/releases/PartyFinderWatch-0.6.0.zip",
+    "Changelog": "Added the Party Finder Watch logo to the installed plugin's metadata.",
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/lividdarling-cmyk/PartyFinderWatch/main/releases/PartyFinderWatch-0.6.1.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/lividdarling-cmyk/PartyFinderWatch/main/releases/PartyFinderWatch-0.6.1.zip",
     "Tags": ["party finder", "alerts"]
   }
 ]
