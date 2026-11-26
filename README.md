@@ -15,3 +15,5 @@ In this build, leave native Party Finder open. **All listings** contains the lis
 ## Watches
 
 Use **Settings** to save independent watches for all Party Finder listings, a category, or selected duties. Add optional keywords or phrases with **+** or paste comma-separated terms. A watch matches if at least one term matches the listing description. Matching ignores letter case and surrounding punctuation. A watch without terms matches all listings in its selected scope.
+
+Use the sound dropdown in **Settings** to select one of FFXIV's built-in chat sounds (`<se.1>`–`<se.16>`). **Preview sound** plays the selected sound locally. Turn off **Play a sound for new matches** to mute automatic alerts.

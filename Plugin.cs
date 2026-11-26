@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
-using System.Runtime.InteropServices;
 using Dalamud.Game.Command;
 using Dalamud.Game.Gui.PartyFinder.Types;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Lumina.Excel.Sheets;
 
@@ -41,6 +41,7 @@ public sealed class Plugin : IDalamudPlugin
     private bool refreshRequested;
     private bool awaitingResponse;
     private bool manuallyRefresh;
+    private bool previewSoundRequested;
     private bool nativeRefreshUnavailable;
 
     internal WatchConfiguration Config { get; }
@@ -99,6 +100,7 @@ public sealed class Plugin : IDalamudPlugin
     internal void Save() => pluginInterface.SavePluginConfig(Config);
     internal void Acknowledge() => unread.Clear();
     internal void RequestRefresh() => manuallyRefresh = true;
+    internal void PreviewAlertSound() => previewSoundRequested = true;
     internal void ResetTimer() => nextAttempt = DateTimeOffset.UtcNow.AddSeconds(Config.RefreshSeconds);
 
     private WatchConfiguration CreateConfiguration()
@@ -127,6 +129,12 @@ public sealed class Plugin : IDalamudPlugin
                 incoming.Clear();
             Status = "Sign in to FFXIV to watch Party Finder.";
             return;
+        }
+
+        if (previewSoundRequested)
+        {
+            previewSoundRequested = false;
+            PlayAlertSound();
         }
 
         while (incoming.TryDequeue(out var received))
@@ -293,8 +301,14 @@ public sealed class Plugin : IDalamudPlugin
         alerted[listing.Id] = listing.Expires;
         unread.Add(listing.Id);
         if (Config.PlaySound && now - lastAlert > TimeSpan.FromSeconds(2))
-            MessageBeep(0x40);
+            PlayAlertSound();
         lastAlert = now;
+    }
+
+    private void PlayAlertSound()
+    {
+        var effect = (uint)Math.Clamp(Config.AlertSound, WatchConfiguration.FirstAlertSound, WatchConfiguration.LastAlertSound);
+        UIGlobals.PlayChatSoundEffect(effect);
     }
 
     private void RemoveExpired(DateTimeOffset now)
@@ -308,10 +322,6 @@ public sealed class Plugin : IDalamudPlugin
         foreach (var id in alerted.Where(entry => entry.Value <= now).Select(entry => entry.Key).ToArray())
             alerted.Remove(id);
     }
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool MessageBeep(uint soundType);
 
     private readonly record struct PendingListing(Listing Listing, int BatchNumber, uint DataCenterId);
 }

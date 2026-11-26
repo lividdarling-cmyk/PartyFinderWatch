@@ -5,10 +5,14 @@ namespace PartyFinderWatch;
 
 public sealed class WatchConfiguration : IPluginConfiguration
 {
+    internal const int FirstAlertSound = 1;
+    internal const int LastAlertSound = 16;
+
     public int Version { get; set; } = 1;
     public bool AutomaticRefresh { get; set; } = true;
     public int RefreshSeconds { get; set; } = 30;
     public bool PlaySound { get; set; } = true;
+    public int AlertSound { get; set; } = FirstAlertSound;
     public bool FlashIcon { get; set; } = true;
     public float? IconX { get; set; }
     public float? IconY { get; set; }

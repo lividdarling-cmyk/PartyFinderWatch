@@ -201,6 +201,27 @@ internal sealed class WatchWindow(Plugin plugin)
             config.PlaySound = sound;
             plugin.Save();
         }
+
+        int alertSound = Math.Clamp(config.AlertSound, WatchConfiguration.FirstAlertSound, WatchConfiguration.LastAlertSound);
+        ImGui.SetNextItemWidth(180);
+        if (ImGui.BeginCombo("##alert-sound", $"Sound {alertSound} (<se.{alertSound}>)", ImGuiComboFlags.HeightLarge))
+        {
+            for (int effect = WatchConfiguration.FirstAlertSound; effect <= WatchConfiguration.LastAlertSound; effect++)
+            {
+                if (ImGui.Selectable($"Sound {effect} (<se.{effect}>)", alertSound == effect))
+                {
+                    config.AlertSound = effect;
+                    plugin.Save();
+                }
+                if (alertSound == effect)
+                    ImGui.SetItemDefaultFocus();
+            }
+            ImGui.EndCombo();
+        }
+        ImGui.SameLine();
+        if (ImGui.SmallButton("Preview sound"))
+            plugin.PreviewAlertSound();
+
         bool flash = config.FlashIcon;
         if (ImGui.Checkbox("Flash the minimized icon", ref flash))
         {
