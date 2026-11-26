@@ -14,6 +14,18 @@ Automatic refresh pauses during duties and area transitions. If you turn off **R
 
 ## Watches
 
-Use **Settings** to save independent watches for all Party Finder listings, a category, or selected duties. Add optional keywords or phrases with **+** or paste comma-separated terms. A watch matches if at least one term matches the listing description. Matching ignores letter case and surrounding punctuation. A watch without terms matches all listings in its selected scope.
+On first run, pick any combination of preset groups or **Start empty**, then follow the **Quick tour**. Use **Settings → Add presets** to add more starter watches later. Each preset becomes an independently editable watch.
+
+| Preset | Matches |
+| --- | --- |
+| **Paid clears** | High-end Duty with a clear term such as `c41`, `a2c`, or `supp to clear`, plus a gil offer. |
+| **Paid prog and lockouts** | High-end Duty with `prog`, `cleanup`, `lockout`, or similar language, plus a gil offer. |
+| **Treasure hunts** | Any listing under Treasure Hunts, including listings without a description. |
+| **Social venues** | Event and venue terms such as `live DJ`, `cafe`, `tavern`, and `open stage` under Other. |
+| **Venue hiring** | Phrases like `hiring`, `job openings`, and `looking for staff` under Other. |
+
+Starter wording comes from [public Party Finder listings](https://xivpf.com/listings), [player-led map events](https://jp.finalfantasyxiv.com/lodestone/character/1529638/event/47188/), and [venue recruitment](https://ryotei.crd.co/). The payment filter recognizes abbreviations such as `1m`, `2 mil`, `2.5m`, and `500k`, full amounts such as `1,000,000 gil`, and terms like `paying`. Each alert is based on the listing text, so read the listing to confirm its terms.
+
+Use **Settings** to save independent watches for all Party Finder listings, a category, or selected duties. Add keywords or phrases with **+** or paste comma-separated terms. One keyword match is enough. Matching ignores letter case and surrounding punctuation. **Require a gil offer** adds a separate payment check. Leaving keywords blank matches any listing within the chosen scope and payment requirements.
 
 Use the sound dropdown in **Settings** to select one of FFXIV's built-in chat sounds (`<se.1>`–`<se.16>`). **Preview sound** plays the selected sound locally. Turn off **Play a sound for new matches** to mute automatic alerts.

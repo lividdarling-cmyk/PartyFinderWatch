@@ -9,6 +9,7 @@ public sealed class WatchConfiguration : IPluginConfiguration
     internal const int LastAlertSound = 16;
 
     public int Version { get; set; } = 1;
+    public bool WatchSetupComplete { get; set; } = true;
     public bool AutomaticRefresh { get; set; } = true;
     public bool RefreshWithPartyFinderClosed { get; set; } = true;
     public int RefreshSeconds { get; set; } = 30;
@@ -28,16 +29,19 @@ public sealed class ListingWatch
     public DutyCategory? Category { get; set; }
     public List<uint> Duties { get; set; } = [];
     public List<string> Terms { get; set; } = [];
+    public bool RequireGilOffer { get; set; }
+    public string? PresetKey { get; set; }
 
     internal bool Matches(Listing listing) => Enabled
         && (Category is null || Category == listing.Category)
         && (Duties.Count == 0 || Duties.Contains(listing.DutyId))
-        && (Terms.Count == 0 || Terms.Any(term => HasTerm(listing.SearchableDescription, term)));
+        && (Terms.Count == 0 || Terms.Any(term => HasTerm(listing.SearchableDescription, term)))
+        && (!RequireGilOffer || GilOffers.Matches(listing.SearchableDescription));
 
     internal static string Normalize(string value) => string.Join(' ',
         value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
-    private static bool HasTerm(string description, string term)
+    internal static bool HasTerm(string description, string term)
     {
         int start = 0;
         while (start < description.Length)

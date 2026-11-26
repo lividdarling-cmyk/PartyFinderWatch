@@ -17,8 +17,6 @@ public sealed class Plugin : IDalamudPlugin
     private const string ListingDetailAddon = "LookingForGroupDetail";
     private const byte DataCenterTab = 0;
     private const byte AllCategoriesTab = 0;
-    private const uint WeaponsRefrain = 539;
-    private const uint EpicOfAlexander = 694;
     private readonly IDalamudPluginInterface pluginInterface;
     private readonly ICommandManager commands;
     private readonly IFramework framework;
@@ -68,7 +66,7 @@ public sealed class Plugin : IDalamudPlugin
         this.condition = condition;
         this.log = log;
         Catalog = new DutyCatalog(dataManager);
-        Config = pluginInterface.GetPluginConfig() as WatchConfiguration ?? CreateConfiguration();
+        Config = pluginInterface.GetPluginConfig() as WatchConfiguration ?? new WatchConfiguration { WatchSetupComplete = false };
         window = new WatchWindow(this);
 
         commands.AddHandler(Command, new CommandInfo((_, _) => window.Open())
@@ -109,23 +107,6 @@ public sealed class Plugin : IDalamudPlugin
     internal void RequestRefresh() => manuallyRefresh = true;
     internal void PreviewAlertSound() => previewSoundRequested = true;
     internal void ResetTimer() => nextAttempt = DateTimeOffset.UtcNow.AddSeconds(Config.RefreshSeconds);
-
-    private WatchConfiguration CreateConfiguration()
-    {
-        return new WatchConfiguration
-        {
-            Watches =
-            [
-                new()
-                {
-                    Name = "Paid UWU and TEA",
-                    Category = DutyCategory.HighEndDuty,
-                    Duties = [WeaponsRefrain, EpicOfAlexander],
-                    Terms = ["c41", "supp to clear", "gil", "pay"],
-                },
-            ],
-        };
-    }
 
     private void Update(IFramework _)
     {

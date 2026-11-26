@@ -4,7 +4,7 @@ using Dalamud.Game.Gui.PartyFinder.Types;
 
 namespace PartyFinderWatch;
 
-internal sealed class WatchWindow(Plugin plugin)
+internal sealed partial class WatchWindow(Plugin plugin)
 {
     private const string SettingsTab = "Settings";
     private static readonly Vector4 Ink = new(0.92f, 0.94f, 0.97f, 1f);
@@ -37,7 +37,7 @@ internal sealed class WatchWindow(Plugin plugin)
 
     private readonly Dictionary<Guid, string> keywordInputs = [];
     private readonly Dictionary<Guid, string> dutyInputs = [];
-    private bool isOpen;
+    private bool isOpen = !plugin.Config.WatchSetupComplete;
     private bool showSettings;
     private bool matchesOnly;
     private bool draggingIcon;
@@ -81,26 +81,38 @@ internal sealed class WatchWindow(Plugin plugin)
         ImGui.SetNextWindowPos(viewport.WorkPos + (viewport.WorkSize - initialSize) * 0.5f, ImGuiCond.FirstUseEver);
         ImGui.SetNextWindowSize(initialSize, ImGuiCond.FirstUseEver);
         ImGui.SetNextWindowSizeConstraints(Vector2.Min(new Vector2(560, 340), maximumSize), maximumSize);
-        if (ImGui.Begin("Party Finder Watch", ref isOpen, ImGuiWindowFlags.NoCollapse) && ImGui.BeginTabBar("##pfwatch-tabs"))
+        if (ImGui.Begin("Party Finder Watch", ref isOpen, ImGuiWindowFlags.NoCollapse))
         {
-            if (ImGui.BeginTabItem("Party Finder"))
-            {
-                DrawListings();
-                ImGui.EndTabItem();
-            }
-
-            if (ImGui.BeginTabItem(SettingsTab, showSettings ? ImGuiTabItemFlags.SetSelected : 0))
-            {
-                DrawSettings();
-                ImGui.EndTabItem();
-            }
-
-            showSettings = false;
-            ImGui.EndTabBar();
+            if (setupPage == SetupPage.None)
+                DrawTabs();
+            else
+                DrawSetup();
         }
         ImGui.End();
         ImGui.PopStyleVar(7);
         ImGui.PopStyleColor(Palette.Length);
+    }
+
+    private void DrawTabs()
+    {
+        if (!ImGui.BeginTabBar("##pfwatch-tabs"))
+            return;
+
+        if (ImGui.BeginTabItem("Party Finder", showListings ? ImGuiTabItemFlags.SetSelected : 0))
+        {
+            DrawListings();
+            ImGui.EndTabItem();
+        }
+
+        if (ImGui.BeginTabItem(SettingsTab, showSettings ? ImGuiTabItemFlags.SetSelected : 0))
+        {
+            DrawSettings();
+            ImGui.EndTabItem();
+        }
+
+        showSettings = false;
+        showListings = false;
+        ImGui.EndTabBar();
     }
 
     private void DrawIcon()
@@ -181,13 +193,8 @@ internal sealed class WatchWindow(Plugin plugin)
         ImGui.SameLine();
         DrawText(plugin.DataCenter, Accent);
         AlignRight("Refresh now");
-        ImGui.PushStyleColor(ImGuiCol.Button, Accent);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(1f, 0.85f, 0.58f, 1f));
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, Accent);
-        ImGui.PushStyleColor(ImGuiCol.Text, AccentInk);
-        if (ImGui.Button("Refresh now"))
+        if (PrimaryButton("Refresh now"))
             plugin.RequestRefresh();
-        ImGui.PopStyleColor(4);
         DrawText(plugin.Status, Muted);
         DrawText(plugin.ScanSummary, Muted);
         ImGui.Spacing();
@@ -265,9 +272,23 @@ internal sealed class WatchWindow(Plugin plugin)
         return clicked;
     }
 
-    private static void AlignRight(string buttonText)
+    private static bool PrimaryButton(string text)
     {
-        float width = ImGui.CalcTextSize(buttonText).X + ImGui.GetStyle().FramePadding.X * 2;
+        ImGui.PushStyleColor(ImGuiCol.Button, Accent);
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(1f, 0.85f, 0.58f, 1f));
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, Accent);
+        ImGui.PushStyleColor(ImGuiCol.Text, AccentInk);
+        bool clicked = ImGui.Button(text);
+        ImGui.PopStyleColor(4);
+        return clicked;
+    }
+
+    private static void AlignRight(string buttonText) => AlignRight(ButtonWidth(buttonText));
+
+    private static float ButtonWidth(string text) => ImGui.CalcTextSize(text).X + ImGui.GetStyle().FramePadding.X * 2;
+
+    private static void AlignRight(float width)
+    {
         ImGui.SameLine(Math.Max(ImGui.GetCursorPosX(), ImGui.GetWindowContentRegionMax().X - width));
     }
 
@@ -391,7 +412,14 @@ internal sealed class WatchWindow(Plugin plugin)
         var watches = plugin.Config.Watches;
         ImGui.AlignTextToFramePadding();
         DrawText("Saved watches", Accent);
-        AlignRight("+ Add watch");
+        AlignRight(ButtonWidth("Quick tour") + ButtonWidth("Add presets") + ButtonWidth("+ Add watch")
+            + ImGui.GetStyle().ItemSpacing.X * 2);
+        if (ImGui.Button("Quick tour"))
+            setupPage = SetupPage.Tour;
+        ImGui.SameLine();
+        if (ImGui.Button("Add presets"))
+            OpenPresetPicker();
+        ImGui.SameLine();
         if (ImGui.Button("+ Add watch"))
         {
             watches.Add(new ListingWatch { Enabled = false });
@@ -466,6 +494,15 @@ internal sealed class WatchWindow(Plugin plugin)
             DrawDutyPicker(watch, chosenCategory);
         }
 
+        bool requireGilOffer = watch.RequireGilOffer;
+        if (ImGui.Checkbox("Require a gil offer", ref requireGilOffer))
+        {
+            watch.RequireGilOffer = requireGilOffer;
+            plugin.Save();
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Looks for amounts like 1m, 2 mil, and 500k, or phrases like 'will pay'.");
+
         string keyword = keywordInputs.GetValueOrDefault(watch.Id, "");
         ImGui.SetNextItemWidth(Math.Min(315, ImGui.GetContentRegionAvail().X * 0.84f));
         bool add = ImGui.InputTextWithHint("##keyword-input", "Keyword or comma-separated phrases", ref keyword, 300,
@@ -488,7 +525,7 @@ internal sealed class WatchWindow(Plugin plugin)
         keywordInputs[watch.Id] = keyword;
 
         if (watch.Terms.Count == 0)
-            DrawText("Any listing in this scope", Muted);
+            DrawText(watch.RequireGilOffer ? "Any gil offer in this scope" : "Any listing in this scope", Muted);
         else
             DrawKeywordChips(watch);
 
