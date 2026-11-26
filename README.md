@@ -4,7 +4,7 @@
 
 ## Install in Dalamud
 
-Use [XIVLauncher](https://goatcorp.github.io/) with Dalamud enabled. The current release targets **Dalamud API 15** and was built on Windows.
+Use [XIVLauncher](https://goatcorp.github.io/) with Dalamud enabled.
 
 1. In FFXIV, type `/xlsettings` and open **Experimental → Custom Plugin Repositories**.
 2. Paste this repository URL, click **+**, make sure its checkbox is enabled, and save.
@@ -16,7 +16,6 @@ Use [XIVLauncher](https://goatcorp.github.io/) with Dalamud enabled. The current
 3. Type `/xlplugins`, find **Party Finder Watch** under **Available Plugins**, and click **Install**.
 4. On first launch, pick one or more starter presets or choose **Start empty**. The **Quick tour** walks you through the window. Use `/pfwatch` to open it any time.
 
-If you previously installed a local test build, disable it under **Installed Dev Plugins** and remove its **Dev Plugin Locations** entry before installing the release. [Release downloads](https://github.com/lividdarling-cmyk/PartyFinderWatch/releases)
 
 ![Party Finder Watch listing table with sample results](docs/party-finder-watch.png)
 
@@ -39,7 +38,6 @@ On first run, pick any combination of preset groups or **Start empty**, then fol
 | **Social venues** | Event and venue terms such as `live DJ`, `cafe`, `tavern`, and `open stage` under Other. |
 | **Venue hiring** | Phrases like `hiring`, `job openings`, and `looking for staff` under Other. |
 
-Starter wording comes from [public Party Finder listings](https://xivpf.com/listings), [player-led map events](https://jp.finalfantasyxiv.com/lodestone/character/1529638/event/47188/), and [venue recruitment](https://ryotei.crd.co/). The payment filter recognizes abbreviations such as `1m`, `2 mil`, `2.5m`, and `500k`, full amounts such as `1,000,000 gil`, and terms like `paying`. Each alert is based on the listing text, so read the listing to confirm its terms.
 
 Use **Settings** to save independent watches for all Party Finder listings, a category, or selected duties. Add keywords or phrases with **+** or paste comma-separated terms. One keyword match is enough. Matching ignores letter case and surrounding punctuation. **Require a gil offer** adds a separate payment check. Leaving keywords blank matches any listing within the chosen scope and payment requirements.
 
@@ -52,9 +50,3 @@ Use the sound dropdown in **Settings** to select one of FFXIV's built-in chat so
 - **No sound.** Check **Play a sound for new matches** and try **Preview sound** in Settings.
 
 For a problem or feature request, [open a GitHub issue](https://github.com/lividdarling-cmyk/PartyFinderWatch/issues). Include the plugin version, game patch, data center, and steps to reproduce it.
-
-Party Finder Watch is a community plugin. Square Enix prohibits third-party tools in FFXIV. [Square Enix’s policy](https://eu.finalfantasyxiv.com/lodestone/topics/detail/68f4c4d3bdea34f732ee8db3425122b8b8d6ec3b)
-
-## Build from source
-
-Install the .NET 10 SDK and launch FFXIV with Dalamud once to get the API 15 development libraries. Set `DALAMUD_HOME` if the libraries are in a custom location, then run `dotnet build -c Release`. For local testing, add the full path to `bin/Release/net10.0-windows/PartyFinderWatch.dll` under **Dev Plugin Locations**, with `PartyFinderWatch.json` beside it.
