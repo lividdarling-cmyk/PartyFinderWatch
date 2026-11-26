@@ -185,6 +185,15 @@ internal sealed class WatchWindow(Plugin plugin)
             plugin.Save();
         }
 
+        bool backgroundRefresh = config.RefreshWithPartyFinderClosed;
+        if (ImGui.Checkbox("Refresh with native Party Finder closed", ref backgroundRefresh))
+        {
+            config.RefreshWithPartyFinderClosed = backgroundRefresh;
+            if (backgroundRefresh && config.AutomaticRefresh)
+                plugin.RequestRefresh();
+            plugin.Save();
+        }
+
         var interval = config.RefreshSeconds;
         ImGui.SetNextItemWidth(230);
         if (ImGui.SliderInt("Refresh interval", ref interval, 10, 600, "%d sec", ImGuiSliderFlags.AlwaysClamp))

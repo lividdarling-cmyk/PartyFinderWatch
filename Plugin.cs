@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Command;
 using Dalamud.Game.Gui.PartyFinder.Types;
 using Dalamud.Plugin;
@@ -14,6 +15,8 @@ public sealed class Plugin : IDalamudPlugin
     private const string Command = "/pfwatch";
     private const string PartyFinderAddon = "LookingForGroup";
     private const string ListingDetailAddon = "LookingForGroupDetail";
+    private const byte DataCenterTab = 0;
+    private const byte AllCategoriesTab = 0;
     private const uint WeaponsRefrain = 539;
     private const uint EpicOfAlexander = 694;
     private readonly IDalamudPluginInterface pluginInterface;
@@ -23,6 +26,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly IGameGui gameGui;
     private readonly IClientState clientState;
     private readonly IPlayerState playerState;
+    private readonly ICondition condition;
     private readonly IPluginLog log;
     private readonly WatchWindow window;
     private readonly ConcurrentQueue<PendingListing> incoming = new();
@@ -38,11 +42,12 @@ public sealed class Plugin : IDalamudPlugin
     private DateTimeOffset responseDeadline;
     private DateTimeOffset? lastResponse;
     private DateTimeOffset lastAlert;
-    private bool refreshRequested;
-    private bool awaitingResponse;
+    private RefreshMode? pendingRefresh;
+    private RefreshMode? lastResponseMode;
     private bool manuallyRefresh;
     private bool previewSoundRequested;
     private bool nativeRefreshUnavailable;
+    private bool backgroundRefreshUnavailable;
 
     internal WatchConfiguration Config { get; }
     internal DutyCatalog Catalog { get; }
@@ -51,7 +56,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public Plugin(IDalamudPluginInterface pluginInterface, ICommandManager commands, IFramework framework,
         IPartyFinderGui partyFinder, IGameGui gameGui, IClientState clientState, IPlayerState playerState,
-        IDataManager dataManager, IPluginLog log)
+        ICondition condition, IDataManager dataManager, IPluginLog log)
     {
         this.pluginInterface = pluginInterface;
         this.commands = commands;
@@ -60,6 +65,7 @@ public sealed class Plugin : IDalamudPlugin
         this.gameGui = gameGui;
         this.clientState = clientState;
         this.playerState = playerState;
+        this.condition = condition;
         this.log = log;
         Catalog = new DutyCatalog(dataManager);
         Config = pluginInterface.GetPluginConfig() as WatchConfiguration ?? CreateConfiguration();
@@ -92,6 +98,7 @@ public sealed class Plugin : IDalamudPlugin
         && DateTimeOffset.UtcNow - lastAlert < TimeSpan.FromSeconds(5);
     internal string ScanSummary => lastResponse is { } time
         ? $"Last data {time.ToLocalTime():HH:mm:ss} · {responseListings.Count} listings · {responseBatches.Count} batches"
+            + (lastResponseMode == RefreshMode.Background ? " · Background refresh" : "")
         : "No listings received yet";
 
     internal string MatchNames(Listing listing) => string.Join(", ", Config.Watches
@@ -149,23 +156,25 @@ public sealed class Plugin : IDalamudPlugin
             nextPrune = now.AddSeconds(1);
         }
 
-        if (awaitingResponse && now >= responseDeadline)
+        if (pendingRefresh is { } timedOut && now >= responseDeadline)
         {
-            awaitingResponse = false;
-            refreshRequested = false;
-            Status = "No listings arrived after the last refresh. The page may be empty.";
+            pendingRefresh = null;
+            Status = timedOut == RefreshMode.Background
+                ? "No listings arrived after the background refresh. Click Refresh now to retry."
+                : "No listings arrived after the last refresh. The page may be empty.";
         }
 
         if (!Config.AutomaticRefresh && !manuallyRefresh)
-        {
-            if (!awaitingResponse)
-                Status = "Automatic refresh is off. Native Party Finder updates are still captured.";
             return;
-        }
 
-        if (!gameGui.GetAddonByName(PartyFinderAddon).IsVisible)
+        if (pendingRefresh is not null || now < lastAttempt.AddSeconds(10) || (!manuallyRefresh && now < nextAttempt))
+            return;
+
+        if (condition[ConditionFlag.BetweenAreas] || condition[ConditionFlag.BetweenAreas51]
+            || condition[ConditionFlag.BoundByDuty] || condition[ConditionFlag.BoundByDuty56]
+            || condition[ConditionFlag.BoundByDuty95])
         {
-            Status = "Open native Party Finder on Data Center → All for this test build.";
+            Status = "Refresh paused during duties and area transitions.";
             return;
         }
 
@@ -175,12 +184,10 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
-        if (awaitingResponse || now < lastAttempt.AddSeconds(10) || (!manuallyRefresh && now < nextAttempt))
-            return;
-
         manuallyRefresh = false;
         nextAttempt = now.AddSeconds(Math.Clamp(Config.RefreshSeconds, 10, 600));
-        RefreshNative(now);
+        var mode = gameGui.GetAddonByName(PartyFinderAddon).IsVisible ? RefreshMode.Native : RefreshMode.Background;
+        Refresh(now, mode);
     }
 
     private bool UpdateDataCenter()
@@ -201,22 +208,35 @@ public sealed class Plugin : IDalamudPlugin
             responseListings.Clear();
             responseBatches.Clear();
             lastResponse = null;
+            lastResponseMode = null;
             nextAttempt = default;
             lastAttempt = default;
-            refreshRequested = false;
-            awaitingResponse = false;
+            pendingRefresh = null;
         }
 
         return dataCenterId != 0;
     }
 
-    private unsafe void RefreshNative(DateTimeOffset now)
+    private unsafe void Refresh(DateTimeOffset now, RefreshMode mode)
     {
-        if (nativeRefreshUnavailable)
+        bool background = mode == RefreshMode.Background;
+        if (background && (!Config.RefreshWithPartyFinderClosed || backgroundRefreshUnavailable))
+        {
+            Status = "Background refresh is unavailable. Open Party Finder on Data Center → All.";
+            return;
+        }
+
+        if (!background && nativeRefreshUnavailable)
             return;
 
         var agent = AgentLookingForGroup.Instance();
-        if (agent == null || agent->SearchAreaTab != 0 || agent->CategoryTab != 0)
+        if (agent == null)
+        {
+            Status = "The Party Finder agent is unavailable. Try again after the area finishes loading.";
+            return;
+        }
+
+        if (!background && (agent->SearchAreaTab != DataCenterTab || agent->CategoryTab != AllCategoriesTab))
         {
             Status = "Select Data Center → All in native Party Finder to refresh all categories.";
             return;
@@ -225,24 +245,41 @@ public sealed class Plugin : IDalamudPlugin
         try
         {
             lastAttempt = now;
-            refreshRequested = true;
-            awaitingResponse = true;
+            pendingRefresh = mode;
             responseDeadline = now.AddSeconds(8);
-            Status = "Refreshing native Party Finder…";
-            if (!agent->RequestListingsUpdate())
+            Status = background ? "Refreshing Party Finder in the background…" : "Refreshing native Party Finder…";
+            if (!(background ? RequestBackgroundListings(agent) : agent->RequestListingsUpdate()))
             {
-                awaitingResponse = false;
-                refreshRequested = false;
-                Status = "Party Finder declined the refresh. It may be busy.";
+                pendingRefresh = null;
+                Status = background ? "Party Finder declined the background refresh. Try again shortly."
+                    : "Party Finder declined the refresh. It may be busy.";
             }
         }
         catch (Exception exception)
         {
-            nativeRefreshUnavailable = true;
-            awaitingResponse = false;
-            refreshRequested = false;
-            Status = "Automatic refresh unavailable. Use the native refresh button.";
-            log.Warning(exception, "Could not refresh native Party Finder");
+            if (background)
+                backgroundRefreshUnavailable = true;
+            else
+                nativeRefreshUnavailable = true;
+            pendingRefresh = null;
+            Status = background ? "Background refresh is unavailable. Open Party Finder on Data Center → All."
+                : "Automatic refresh unavailable. Use the native refresh button.";
+            log.Warning(exception, "Could not refresh Party Finder ({Mode})", mode);
+        }
+    }
+
+    private static unsafe bool RequestBackgroundListings(AgentLookingForGroup* agent)
+    {
+        // The game's category request uses the search-area tab even when its addon is closed.
+        byte previousSearchArea = agent->SearchAreaTab;
+        agent->SearchAreaTab = DataCenterTab;
+        try
+        {
+            return agent->RequestCategoryListings(AllCategoriesTab);
+        }
+        finally
+        {
+            agent->SearchAreaTab = previousSearchArea;
         }
     }
 
@@ -267,18 +304,18 @@ public sealed class Plugin : IDalamudPlugin
     {
         var listing = received.Listing;
         var now = listing.FirstSeen;
-        if (refreshRequested || lastResponse is null || now - lastResponse.Value > TimeSpan.FromSeconds(2))
+        if (pendingRefresh is not null || lastResponse is null || now - lastResponse.Value > TimeSpan.FromSeconds(2))
         {
             responseListings.Clear();
             responseBatches.Clear();
-            refreshRequested = false;
+            lastResponseMode = pendingRefresh;
         }
 
-        awaitingResponse = false;
+        pendingRefresh = null;
         lastResponse = now;
         responseListings.Add(listing.Id);
         responseBatches.Add(received.BatchNumber);
-        Status = "Watching Party Finder";
+        Status = lastResponseMode == RefreshMode.Background ? "Watching Party Finder in the background" : "Watching Party Finder";
 
         if (string.IsNullOrWhiteSpace(listing.Duty))
             listing = listing with { Duty = DutyCatalog.CategoryName(listing.Category) };
@@ -324,4 +361,6 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     private readonly record struct PendingListing(Listing Listing, int BatchNumber, uint DataCenterId);
+
+    private enum RefreshMode { Native, Background }
 }

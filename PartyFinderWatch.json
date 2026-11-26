@@ -2,7 +2,7 @@
   "Author": "lividdarling-cmyk",
   "Name": "Party Finder Watch",
   "InternalName": "PartyFinderWatch",
-  "AssemblyVersion": "0.2.0.0",
+  "AssemblyVersion": "0.3.0.0",
   "DalamudApiLevel": 15,
   "ApplicableVersion": "any",
   "Punchline": "Get in-game alerts for Party Finder listings that match your watches.",

@@ -10,6 +10,7 @@ public sealed class WatchConfiguration : IPluginConfiguration
 
     public int Version { get; set; } = 1;
     public bool AutomaticRefresh { get; set; } = true;
+    public bool RefreshWithPartyFinderClosed { get; set; } = true;
     public int RefreshSeconds { get; set; } = 30;
     public bool PlaySound { get; set; } = true;
     public int AlertSound { get; set; } = FirstAlertSound;
