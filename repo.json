@@ -9,8 +9,8 @@
     "Punchline": "Get in-game alerts for Party Finder listings that match your watches.",
     "Description": "Browse listings received by FFXIV and watch for categories, duties, and keywords. Use /pfwatch to open the window.",
     "RepoUrl": "https://github.com/lividdarling-cmyk/PartyFinderWatch",
-    "DownloadLinkInstall": "https://github.com/lividdarling-cmyk/PartyFinderWatch/releases/download/v0.6.0/PartyFinderWatch-0.6.0.zip",
-    "DownloadLinkUpdate": "https://github.com/lividdarling-cmyk/PartyFinderWatch/releases/download/v0.6.0/PartyFinderWatch-0.6.0.zip",
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/lividdarling-cmyk/PartyFinderWatch/main/releases/PartyFinderWatch-0.6.0.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/lividdarling-cmyk/PartyFinderWatch/main/releases/PartyFinderWatch-0.6.0.zip",
     "Tags": ["party finder", "alerts"]
   }
 ]
