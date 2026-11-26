@@ -40,7 +40,6 @@ internal sealed partial class WatchWindow(Plugin plugin)
     private bool isOpen = !plugin.Config.WatchSetupComplete;
     private bool showSettings;
     private bool matchesOnly;
-    private bool draggingIcon;
     private string listingSearch = string.Empty;
 
     internal void Open()
@@ -61,7 +60,7 @@ internal sealed partial class WatchWindow(Plugin plugin)
     {
         if (!isOpen)
         {
-            DrawIcon();
+            DrawBadge();
             return;
         }
 
@@ -113,76 +112,6 @@ internal sealed partial class WatchWindow(Plugin plugin)
         showSettings = false;
         showListings = false;
         ImGui.EndTabBar();
-    }
-
-    private void DrawIcon()
-    {
-        var viewport = ImGui.GetMainViewport();
-        var defaultPosition = viewport.WorkPos + new Vector2(280, 75);
-        var savedPosition = new Vector2(plugin.Config.IconX ?? defaultPosition.X, plugin.Config.IconY ?? defaultPosition.Y);
-        var badgeSize = Vector2.Max(new Vector2(46, 38), ImGui.CalcTextSize("PF") + new Vector2(26, 20));
-        var maximum = Vector2.Max(viewport.WorkPos, viewport.WorkPos + viewport.WorkSize - badgeSize - new Vector2(10));
-        var badgePosition = Vector2.Clamp(savedPosition, viewport.WorkPos, maximum);
-        ImGui.SetNextWindowPos(badgePosition, ImGuiCond.Always);
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(5));
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 9f);
-
-        var flags = ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.AlwaysAutoResize
-            | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoMove
-            | ImGuiWindowFlags.NoBackground;
-        if (ImGui.Begin("##pfwatch-icon", flags))
-        {
-            int unread = plugin.UnreadCount;
-            float pulse = plugin.IsFlashing ? 0.55f + 0.45f * (float)Math.Cos(ImGui.GetTime() * 9) : 0.65f;
-            var fill = unread > 0 ? Vector4.Lerp(Panel, Selected, pulse) : Panel;
-            ImGui.PushStyleColor(ImGuiCol.Button, fill);
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Hover);
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, Selected);
-            ImGui.PushStyleColor(ImGuiCol.Text, Accent);
-            bool click = ImGui.Button("PF###open", badgeSize);
-            ImGui.PopStyleColor(4);
-            DrawBadgeBorder(unread, pulse);
-
-            if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
-            {
-                draggingIcon = true;
-                var position = Vector2.Clamp(badgePosition + ImGui.GetIO().MouseDelta, viewport.WorkPos, maximum);
-                plugin.Config.IconX = position.X;
-                plugin.Config.IconY = position.Y;
-            }
-
-            if (draggingIcon && ImGui.IsMouseReleased(ImGuiMouseButton.Left))
-            {
-                plugin.Save();
-                draggingIcon = false;
-            }
-            else if (click && !draggingIcon)
-            {
-                Open();
-            }
-
-            if (ImGui.IsItemHovered() && !draggingIcon)
-                ImGui.SetTooltip(unread > 0 ? $"{unread} new matches · click to open · drag to move" : "Party Finder Watch · click to open · drag to move");
-        }
-        ImGui.End();
-        ImGui.PopStyleVar(2);
-    }
-
-    private static void DrawBadgeBorder(int unread, float pulse)
-    {
-        var draw = ImGui.GetWindowDrawList();
-        var topLeft = ImGui.GetItemRectMin();
-        var bottomRight = ImGui.GetItemRectMax();
-        var border = unread > 0 ? Vector4.Lerp(Line, Accent, pulse) : Line;
-        draw.AddRect(topLeft, bottomRight, ImGui.GetColorU32(border), 9f, ImDrawFlags.None, 1.5f);
-
-        if (unread == 0)
-            return;
-
-        float radius = MathF.Max(7f, ImGui.GetFontSize() * 0.58f);
-        var center = new Vector2(bottomRight.X - radius + 1, topLeft.Y + radius - 1);
-        draw.AddCircleFilled(center, radius, ImGui.GetColorU32(Accent));
-        draw.AddText(center - ImGui.CalcTextSize("!") * 0.5f, ImGui.GetColorU32(AccentInk), "!");
     }
 
     private void DrawListings()

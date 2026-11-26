@@ -91,7 +91,7 @@ internal sealed partial class WatchWindow
         ImGui.Separator();
         DrawTourStep("Edit a watch", "In Settings, pick a category and duties. Add keywords with +. With no keywords, the watch uses just the scope and any gil requirement.");
         DrawTourStep("See your matches", "Use All listings to browse Party Finder and Matches to see what your watches caught. Refresh now requests a new set of listings.");
-        DrawTourStep("Keep watching", "Close the window to its draggable PF badge. An exclamation mark signals a new match. Choose or mute the sound in Settings.");
+        DrawTourStep("Keep watching", "Close the window to its draggable Party Finder Watch badge. An exclamation mark signals a new match. Choose or mute the sound in Settings.");
 
         ImGui.Spacing();
         if (ImGui.Button("View listings"))

@@ -1,6 +1,6 @@
 # Party Finder Watch
 
-A Dalamud plugin that watches the Party Finder listings received by your FFXIV client. The plugin follows your current data center and does not use an external listing database.
+A Dalamud plugin that watches the Party Finder listings received by your FFXIV client. Its scope follows the logical data center of your current world, such as Aether or Primal. The list and unread alerts reset when you move to a different logical data center.
 
 ## Local test build
 
@@ -8,7 +8,7 @@ A Dalamud plugin that watches the Party Finder listings received by your FFXIV c
 2. In FFXIV, open `/xlsettings` → **Experimental** → **Dev Plugin Locations** and add the full path to `bin/Release/net10.0-windows/PartyFinderWatch.dll`. The plugin manifest stays beside the DLL.
 3. Open `/xlplugins` → **Dev Tools** → **Installed Dev Plugins** and enable **Party Finder Watch**. With native Party Finder closed, use `/pfwatch` to open the custom window.
 4. Click **Refresh now**. Check for a new timestamp, listings in **All listings**, and **Background refresh** on the **Last data** line. Verify this once after logging in before opening native Party Finder.
-5. Close the custom window to the **PF** icon. With **Automatic refresh** enabled, wait one full interval and reopen the icon to verify that **Last data** advanced. For an alert test, use a watch for a category with an existing listing and leave its keyword list blank. Refreshing the same listing again should stay quiet.
+5. Close the custom window to the **Party Finder Watch** badge. With **Automatic refresh** enabled, wait one full interval and reopen the badge to verify that **Last data** advanced. For an alert test, use a watch for a category with an existing listing and leave its keyword list blank. The badge shows an **!** after a match, and refreshing the same listing again should stay quiet.
 
 Automatic refresh pauses during duties and area transitions. If you turn off **Refresh with native Party Finder closed**, open the native window on **Data Center → All** to refresh. **All listings** shows listings received by the client, including any additional pages you browse manually. Listings that end early may remain visible until their listed timer expires.
 

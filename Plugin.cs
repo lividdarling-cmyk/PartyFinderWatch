@@ -26,6 +26,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly IPlayerState playerState;
     private readonly ICondition condition;
     private readonly IPluginLog log;
+    private readonly WorldDataCenters worldDataCenters;
     private readonly WatchWindow window;
     private readonly ConcurrentQueue<PendingListing> incoming = new();
     private readonly Dictionary<ulong, Listing> listings = [];
@@ -34,6 +35,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly HashSet<int> responseBatches = [];
     private readonly HashSet<ulong> responseListings = [];
     private uint dataCenterId;
+    private string dataCenterName = "—";
+    private bool dataCenterReady;
     private DateTimeOffset nextAttempt;
     private DateTimeOffset lastAttempt;
     private DateTimeOffset nextPrune;
@@ -49,7 +52,7 @@ public sealed class Plugin : IDalamudPlugin
 
     internal WatchConfiguration Config { get; }
     internal DutyCatalog Catalog { get; }
-    internal string DataCenter { get; private set; } = "—";
+    internal string DataCenter => dataCenterReady ? dataCenterName : "—";
     internal string Status { get; private set; } = "Waiting for Party Finder";
 
     public Plugin(IDalamudPluginInterface pluginInterface, ICommandManager commands, IFramework framework,
@@ -65,6 +68,7 @@ public sealed class Plugin : IDalamudPlugin
         this.playerState = playerState;
         this.condition = condition;
         this.log = log;
+        worldDataCenters = new WorldDataCenters(dataManager);
         Catalog = new DutyCatalog(dataManager);
         Config = pluginInterface.GetPluginConfig() as WatchConfiguration ?? new WatchConfiguration { WatchSetupComplete = false };
         window = new WatchWindow(this);
@@ -90,11 +94,11 @@ public sealed class Plugin : IDalamudPlugin
         commands.RemoveHandler(Command);
     }
 
-    internal IEnumerable<Listing> CurrentListings => listings.Values;
-    internal int UnreadCount => unread.Count;
-    internal bool IsFlashing => Config.FlashIcon && unread.Count > 0
+    internal IEnumerable<Listing> CurrentListings => dataCenterReady ? listings.Values : [];
+    internal int UnreadCount => dataCenterReady ? unread.Count : 0;
+    internal bool IsFlashing => Config.FlashIcon && UnreadCount > 0
         && DateTimeOffset.UtcNow - lastAlert < TimeSpan.FromSeconds(5);
-    internal string ScanSummary => lastResponse is { } time
+    internal string ScanSummary => dataCenterReady && lastResponse is { } time
         ? $"Last data {time.ToLocalTime():HH:mm:ss} · {responseListings.Count} listings · {responseBatches.Count} batches"
             + (lastResponseMode == RefreshMode.Background ? " · Background refresh" : "")
         : "No listings received yet";
@@ -111,11 +115,12 @@ public sealed class Plugin : IDalamudPlugin
     private void Update(IFramework _)
     {
         var now = DateTimeOffset.UtcNow;
-        if (!UpdateDataCenter())
+        dataCenterReady = UpdateDataCenter();
+        if (!dataCenterReady)
         {
             if (!clientState.IsLoggedIn)
                 incoming.Clear();
-            Status = "Sign in to FFXIV to watch Party Finder.";
+            Status = clientState.IsLoggedIn ? "Waiting for your current data center…" : "Sign in to FFXIV to watch Party Finder.";
             return;
         }
 
@@ -127,7 +132,7 @@ public sealed class Plugin : IDalamudPlugin
 
         while (incoming.TryDequeue(out var received))
         {
-            if (received.DataCenterId == 0 || received.DataCenterId == dataCenterId)
+            if (received.DataCenterId == dataCenterId)
                 StoreListing(received);
         }
 
@@ -175,14 +180,13 @@ public sealed class Plugin : IDalamudPlugin
     {
         WorldDCGroupType dc = default;
         if (clientState.IsLoggedIn && (!playerState.IsLoaded
-            || !playerState.CurrentWorld.TryGetValue(out var world)
-            || !world.DataCenter.TryGetValue(out dc)))
+            || !worldDataCenters.TryGet(playerState.CurrentWorld.RowId, out dc)))
             return false;
 
         if (dataCenterId != dc.RowId)
         {
             dataCenterId = dc.RowId;
-            DataCenter = dataCenterId == 0 ? "—" : dc.Name.ToString();
+            dataCenterName = dataCenterId == 0 ? "—" : dc.Name.ToString();
             listings.Clear();
             alerted.Clear();
             unread.Clear();
@@ -266,19 +270,20 @@ public sealed class Plugin : IDalamudPlugin
 
     private void ReceiveListing(IPartyFinderListing received, IPartyFinderListingEventArgs args)
     {
-        if (received.Id == 0 || received.SecondsRemaining == 0)
+        if (received.Id == 0 || received.SecondsRemaining == 0
+            || !worldDataCenters.TryGet(received.World.RowId, out var postedDataCenter)
+            || !received.World.TryGetValue(out var world))
             return;
 
         var now = DateTimeOffset.UtcNow;
         var dutyId = received.Duty.RowId;
         var dutyName = received.Duty.TryGetValue(out var duty) ? duty.Name.ToString() : string.Empty;
-        var world = received.World.TryGetValue(out var listingWorld) ? listingWorld : default;
         var description = received.Description.TextValue;
         var listing = new Listing(received.Id, received.Category, dutyId, dutyName,
-            world.RowId == 0 ? "—" : world.Name.ToString(), received.Name.TextValue,
+            world.Name.ToString(), received.Name.TextValue,
             description, ListingWatch.Normalize(description), received.SlotsFilled,
             received.SlotsAvailable, now.AddSeconds(received.SecondsRemaining), now);
-        incoming.Enqueue(new PendingListing(listing, args.BatchNumber, world.RowId == 0 ? 0 : world.DataCenter.RowId));
+        incoming.Enqueue(new PendingListing(listing, args.BatchNumber, postedDataCenter.RowId));
     }
 
     private void StoreListing(PendingListing received)
