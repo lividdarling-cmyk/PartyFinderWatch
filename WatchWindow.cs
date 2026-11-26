@@ -7,6 +7,34 @@ namespace PartyFinderWatch;
 internal sealed class WatchWindow(Plugin plugin)
 {
     private const string SettingsTab = "Settings";
+    private static readonly Vector4 Ink = new(0.92f, 0.94f, 0.97f, 1f);
+    private static readonly Vector4 Muted = new(0.65f, 0.70f, 0.78f, 1f);
+    private static readonly Vector4 Accent = new(0.93f, 0.77f, 0.48f, 1f);
+    private static readonly Vector4 AccentInk = new(0.12f, 0.09f, 0.06f, 1f);
+    private static readonly Vector4 Panel = new(0.075f, 0.10f, 0.15f, 0.98f);
+    private static readonly Vector4 Surface = new(0.12f, 0.16f, 0.23f, 1f);
+    private static readonly Vector4 Hover = new(0.20f, 0.26f, 0.35f, 1f);
+    private static readonly Vector4 Line = new(0.22f, 0.28f, 0.36f, 1f);
+    private static readonly Vector4 Selected = new(0.26f, 0.22f, 0.17f, 1f);
+    private static readonly Vector4 AlternateRow = new(0.09f, 0.12f, 0.18f, 1f);
+    private static readonly Vector4 MatchRow = new(0.15f, 0.14f, 0.14f, 1f);
+    private static readonly (ImGuiCol Slot, Vector4 Color)[] Palette =
+    [
+        (ImGuiCol.Text, Ink), (ImGuiCol.TextDisabled, Muted),
+        (ImGuiCol.WindowBg, Panel), (ImGuiCol.PopupBg, Panel), (ImGuiCol.Border, Line),
+        (ImGuiCol.TitleBg, Surface), (ImGuiCol.TitleBgActive, Surface), (ImGuiCol.TitleBgCollapsed, Surface),
+        (ImGuiCol.FrameBg, Surface), (ImGuiCol.FrameBgHovered, Hover), (ImGuiCol.FrameBgActive, Hover),
+        (ImGuiCol.Button, Surface), (ImGuiCol.ButtonHovered, Hover), (ImGuiCol.ButtonActive, Selected),
+        (ImGuiCol.CheckMark, Accent), (ImGuiCol.SliderGrab, Accent), (ImGuiCol.SliderGrabActive, Accent),
+        (ImGuiCol.Header, Surface), (ImGuiCol.HeaderHovered, Hover), (ImGuiCol.HeaderActive, Selected),
+        (ImGuiCol.Tab, Surface), (ImGuiCol.TabHovered, Hover), (ImGuiCol.TabActive, Selected),
+        (ImGuiCol.Separator, Line), (ImGuiCol.TableHeaderBg, Surface), (ImGuiCol.TableBorderLight, Line),
+        (ImGuiCol.TableRowBg, Panel), (ImGuiCol.TableRowBgAlt, AlternateRow),
+        (ImGuiCol.ScrollbarBg, Panel), (ImGuiCol.ScrollbarGrab, Line),
+        (ImGuiCol.ScrollbarGrabHovered, Muted), (ImGuiCol.ScrollbarGrabActive, Muted),
+        (ImGuiCol.ResizeGrip, Line), (ImGuiCol.ResizeGripHovered, Accent), (ImGuiCol.ResizeGripActive, Accent),
+    ];
+
     private readonly Dictionary<Guid, string> keywordInputs = [];
     private readonly Dictionary<Guid, string> dutyInputs = [];
     private bool isOpen;
@@ -37,9 +65,23 @@ internal sealed class WatchWindow(Plugin plugin)
             return;
         }
 
-        ImGui.SetNextWindowSize(new Vector2(760, 510), ImGuiCond.FirstUseEver);
-        ImGui.SetNextWindowSizeConstraints(new Vector2(540, 320), new Vector2(float.MaxValue));
-        if (ImGui.Begin("Party Finder Watch", ref isOpen) && ImGui.BeginTabBar("##pfwatch-tabs"))
+        foreach (var (slot, color) in Palette)
+            ImGui.PushStyleColor(slot, color);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 10f);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(16, 12));
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 5f);
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(10, 5));
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(10, 8));
+        ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(10, 8));
+        ImGui.PushStyleVar(ImGuiStyleVar.TabRounding, 6f);
+
+        var viewport = ImGui.GetMainViewport();
+        var maximumSize = Vector2.Max(new Vector2(1), viewport.WorkSize - new Vector2(28));
+        var initialSize = Vector2.Min(new Vector2(880, 590), maximumSize);
+        ImGui.SetNextWindowPos(viewport.WorkPos + (viewport.WorkSize - initialSize) * 0.5f, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowSize(initialSize, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowSizeConstraints(Vector2.Min(new Vector2(560, 340), maximumSize), maximumSize);
+        if (ImGui.Begin("Party Finder Watch", ref isOpen, ImGuiWindowFlags.NoCollapse) && ImGui.BeginTabBar("##pfwatch-tabs"))
         {
             if (ImGui.BeginTabItem("Party Finder"))
             {
@@ -57,6 +99,8 @@ internal sealed class WatchWindow(Plugin plugin)
             ImGui.EndTabBar();
         }
         ImGui.End();
+        ImGui.PopStyleVar(7);
+        ImGui.PopStyleColor(Palette.Length);
     }
 
     private void DrawIcon()
@@ -64,30 +108,33 @@ internal sealed class WatchWindow(Plugin plugin)
         var viewport = ImGui.GetMainViewport();
         var defaultPosition = viewport.WorkPos + new Vector2(280, 75);
         var savedPosition = new Vector2(plugin.Config.IconX ?? defaultPosition.X, plugin.Config.IconY ?? defaultPosition.Y);
-        var maximum = Vector2.Max(viewport.WorkPos, viewport.WorkPos + viewport.WorkSize - new Vector2(58, 44));
-        ImGui.SetNextWindowPos(Vector2.Clamp(savedPosition, viewport.WorkPos, maximum), ImGuiCond.Always);
-        ImGui.SetNextWindowBgAlpha(0);
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(3));
+        var badgeSize = Vector2.Max(new Vector2(46, 38), ImGui.CalcTextSize("PF") + new Vector2(26, 20));
+        var maximum = Vector2.Max(viewport.WorkPos, viewport.WorkPos + viewport.WorkSize - badgeSize - new Vector2(10));
+        var badgePosition = Vector2.Clamp(savedPosition, viewport.WorkPos, maximum);
+        ImGui.SetNextWindowPos(badgePosition, ImGuiCond.Always);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(5));
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 9f);
 
         var flags = ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.AlwaysAutoResize
-            | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoMove;
+            | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoMove
+            | ImGuiWindowFlags.NoBackground;
         if (ImGui.Begin("##pfwatch-icon", flags))
         {
             int unread = plugin.UnreadCount;
-            if (unread > 0)
-            {
-                float brightness = plugin.IsFlashing ? 0.69f + 0.3f * (float)Math.Sin(ImGui.GetTime() * 12) : 0.8f;
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(brightness, brightness * 0.53f, 0.14f, 1));
-            }
-
-            bool click = ImGui.Button(unread > 0 ? "PF !###open" : "PF###open", new Vector2(48, 34));
-            if (unread > 0)
-                ImGui.PopStyleColor();
+            float pulse = plugin.IsFlashing ? 0.55f + 0.45f * (float)Math.Cos(ImGui.GetTime() * 9) : 0.65f;
+            var fill = unread > 0 ? Vector4.Lerp(Panel, Selected, pulse) : Panel;
+            ImGui.PushStyleColor(ImGuiCol.Button, fill);
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Hover);
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, Selected);
+            ImGui.PushStyleColor(ImGuiCol.Text, Accent);
+            bool click = ImGui.Button("PF###open", badgeSize);
+            ImGui.PopStyleColor(4);
+            DrawBadgeBorder(unread, pulse);
 
             if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
             {
                 draggingIcon = true;
-                var position = Vector2.Clamp(ImGui.GetWindowPos() + ImGui.GetIO().MouseDelta, viewport.WorkPos, maximum);
+                var position = Vector2.Clamp(badgePosition + ImGui.GetIO().MouseDelta, viewport.WorkPos, maximum);
                 plugin.Config.IconX = position.X;
                 plugin.Config.IconY = position.Y;
             }
@@ -106,33 +153,64 @@ internal sealed class WatchWindow(Plugin plugin)
                 ImGui.SetTooltip(unread > 0 ? $"{unread} new matches · click to open · drag to move" : "Party Finder Watch · click to open · drag to move");
         }
         ImGui.End();
-        ImGui.PopStyleVar();
+        ImGui.PopStyleVar(2);
+    }
+
+    private static void DrawBadgeBorder(int unread, float pulse)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        var topLeft = ImGui.GetItemRectMin();
+        var bottomRight = ImGui.GetItemRectMax();
+        var border = unread > 0 ? Vector4.Lerp(Line, Accent, pulse) : Line;
+        draw.AddRect(topLeft, bottomRight, ImGui.GetColorU32(border), 9f, ImDrawFlags.None, 1.5f);
+
+        if (unread == 0)
+            return;
+
+        float radius = MathF.Max(7f, ImGui.GetFontSize() * 0.58f);
+        var center = new Vector2(bottomRight.X - radius + 1, topLeft.Y + radius - 1);
+        draw.AddCircleFilled(center, radius, ImGui.GetColorU32(Accent));
+        draw.AddText(center - ImGui.CalcTextSize("!") * 0.5f, ImGui.GetColorU32(AccentInk), "!");
     }
 
     private void DrawListings()
     {
-        ImGui.TextUnformatted($"Data center  {plugin.DataCenter}");
+        ImGui.Spacing();
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextDisabled("Data center");
         ImGui.SameLine();
-        if (ImGui.SmallButton("Refresh now"))
+        DrawText(plugin.DataCenter, Accent);
+        AlignRight("Refresh now");
+        ImGui.PushStyleColor(ImGuiCol.Button, Accent);
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(1f, 0.85f, 0.58f, 1f));
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, Accent);
+        ImGui.PushStyleColor(ImGuiCol.Text, AccentInk);
+        if (ImGui.Button("Refresh now"))
             plugin.RequestRefresh();
-        ImGui.TextDisabled(plugin.Status);
-        ImGui.TextDisabled(plugin.ScanSummary);
-        ImGui.Separator();
+        ImGui.PopStyleColor(4);
+        DrawText(plugin.Status, Muted);
+        DrawText(plugin.ScanSummary, Muted);
+        ImGui.Spacing();
 
-        if (ImGui.RadioButton("All listings", !matchesOnly))
+        if (FilterButton("All listings", !matchesOnly))
             matchesOnly = false;
         ImGui.SameLine();
-        if (ImGui.RadioButton("Matches", matchesOnly))
+        if (FilterButton("Matches", matchesOnly))
             matchesOnly = true;
         ImGui.SameLine();
         ImGui.SetNextItemWidth(-1);
         ImGui.InputTextWithHint("##listings-search", "Search received listings", ref listingSearch, 160);
 
-        if (!ImGui.BeginChild("##party-finder-entries", Vector2.Zero, true))
-        {
-            ImGui.EndChild();
+        const ImGuiTableFlags flags = ImGuiTableFlags.ScrollY | ImGuiTableFlags.RowBg
+            | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp;
+        if (!ImGui.BeginTable("##party-finder-entries", 3, flags, Vector2.Zero))
             return;
-        }
+
+        ImGui.TableSetupColumn("Duty", ImGuiTableColumnFlags.WidthStretch, 0.34f);
+        ImGui.TableSetupColumn("Recruitment", ImGuiTableColumnFlags.WidthStretch, 0.56f);
+        ImGui.TableSetupColumn("Party", ImGuiTableColumnFlags.WidthFixed, ImGui.CalcTextSize("00 / 00").X + 8);
+        ImGui.TableSetupScrollFreeze(0, 1);
+        ImGui.TableHeadersRow();
 
         bool any = false;
         foreach (var listing in plugin.CurrentListings.OrderByDescending(item => item.FirstSeen))
@@ -142,30 +220,64 @@ internal sealed class WatchWindow(Plugin plugin)
                 continue;
 
             any = true;
-            ImGui.PushID(listing.Id.ToString());
-            if (matches.Length > 0)
-            {
-                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.75f, 0.35f, 1f));
-                ImGui.TextUnformatted(matches);
-                ImGui.PopStyleColor();
-            }
-
-            ImGui.TextUnformatted($"{listing.Duty}  ·  {listing.SlotsFilled}/{listing.TotalSlots}");
-            ImGui.TextDisabled($"{listing.Recruiter}  ·  {listing.World}  ·  {DutyCatalog.CategoryName(listing.Category)}");
-            if (!string.IsNullOrEmpty(listing.Description))
-            {
-                ImGui.PushTextWrapPos();
-                ImGui.TextUnformatted(listing.Description);
-                ImGui.PopTextWrapPos();
-            }
-            ImGui.Separator();
-            ImGui.PopID();
+            DrawListingRow(listing, matches);
         }
 
         if (!any)
-            ImGui.TextDisabled(matchesOnly ? "No matching listings." : "No listings to show.");
+        {
+            ImGui.TableNextRow();
+            ImGui.TableSetColumnIndex(1);
+            DrawText(matchesOnly || listingSearch.Length > 0 ? "No matching listings." : "No listings to show.", Muted);
+        }
 
-        ImGui.EndChild();
+        ImGui.EndTable();
+    }
+
+    private static void DrawListingRow(Listing listing, string matches)
+    {
+        ImGui.TableNextRow();
+        if (matches.Length > 0)
+            ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg0, ImGui.GetColorU32(MatchRow));
+
+        ImGui.TableSetColumnIndex(0);
+        DrawText(listing.Duty, Ink);
+        var category = DutyCatalog.CategoryName(listing.Category);
+        if (listing.Duty != category)
+            DrawText(category, Muted);
+
+        ImGui.TableSetColumnIndex(1);
+        if (matches.Length > 0)
+            DrawText(matches, Accent);
+        if (!string.IsNullOrEmpty(listing.Description))
+            DrawText(listing.Description, Ink);
+        DrawText($"{listing.Recruiter} · {listing.World}", Muted);
+
+        ImGui.TableSetColumnIndex(2);
+        ImGui.TextUnformatted($"{listing.SlotsFilled} / {listing.TotalSlots}");
+    }
+
+    private static bool FilterButton(string text, bool selected)
+    {
+        ImGui.PushStyleColor(ImGuiCol.Button, selected ? Selected : Surface);
+        ImGui.PushStyleColor(ImGuiCol.Text, selected ? Accent : Ink);
+        bool clicked = ImGui.Button(text);
+        ImGui.PopStyleColor(2);
+        return clicked;
+    }
+
+    private static void AlignRight(string buttonText)
+    {
+        float width = ImGui.CalcTextSize(buttonText).X + ImGui.GetStyle().FramePadding.X * 2;
+        ImGui.SameLine(Math.Max(ImGui.GetCursorPosX(), ImGui.GetWindowContentRegionMax().X - width));
+    }
+
+    private static void DrawText(string text, Vector4 color)
+    {
+        ImGui.PushStyleColor(ImGuiCol.Text, color);
+        ImGui.PushTextWrapPos();
+        ImGui.TextUnformatted(text);
+        ImGui.PopTextWrapPos();
+        ImGui.PopStyleColor();
     }
 
     private bool ContainsSearch(Listing listing) => listingSearch.Length == 0
@@ -175,6 +287,36 @@ internal sealed class WatchWindow(Plugin plugin)
 
     private void DrawSettings()
     {
+        ImGui.Spacing();
+        if (ImGui.BeginChild("##settings-scroll", Vector2.Zero))
+        {
+            float columnThreshold = Math.Max(650, ImGui.CalcTextSize("Refresh with native Party Finder closed").X * 2 + 80);
+            if (ImGui.GetContentRegionAvail().X >= columnThreshold && ImGui.BeginTable("##settings-controls", 2))
+            {
+                ImGui.TableNextColumn();
+                DrawRefreshSettings();
+                ImGui.TableNextColumn();
+                DrawAlertSettings();
+                ImGui.EndTable();
+            }
+            else
+            {
+                DrawRefreshSettings();
+                ImGui.Spacing();
+                DrawAlertSettings();
+            }
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+            DrawWatches();
+        }
+        ImGui.EndChild();
+    }
+
+    private void DrawRefreshSettings()
+    {
+        DrawText("Refresh", Accent);
         var config = plugin.Config;
         bool automaticRefresh = config.AutomaticRefresh;
         if (ImGui.Checkbox("Automatic refresh", ref automaticRefresh))
@@ -195,7 +337,7 @@ internal sealed class WatchWindow(Plugin plugin)
         }
 
         var interval = config.RefreshSeconds;
-        ImGui.SetNextItemWidth(230);
+        ImGui.SetNextItemWidth(Math.Min(190, ImGui.GetContentRegionAvail().X * 0.50f));
         if (ImGui.SliderInt("Refresh interval", ref interval, 10, 600, "%d sec", ImGuiSliderFlags.AlwaysClamp))
         {
             config.RefreshSeconds = interval;
@@ -203,7 +345,12 @@ internal sealed class WatchWindow(Plugin plugin)
         }
         if (ImGui.IsItemDeactivatedAfterEdit())
             plugin.Save();
+    }
 
+    private void DrawAlertSettings()
+    {
+        DrawText("Alerts", Accent);
+        var config = plugin.Config;
         bool sound = config.PlaySound;
         if (ImGui.Checkbox("Play a sound for new matches", ref sound))
         {
@@ -212,7 +359,7 @@ internal sealed class WatchWindow(Plugin plugin)
         }
 
         int alertSound = Math.Clamp(config.AlertSound, WatchConfiguration.FirstAlertSound, WatchConfiguration.LastAlertSound);
-        ImGui.SetNextItemWidth(180);
+        ImGui.SetNextItemWidth(Math.Min(205, ImGui.GetContentRegionAvail().X * 0.54f));
         if (ImGui.BeginCombo("##alert-sound", $"Sound {alertSound} (<se.{alertSound}>)", ImGuiComboFlags.HeightLarge))
         {
             for (int effect = WatchConfiguration.FirstAlertSound; effect <= WatchConfiguration.LastAlertSound; effect++)
@@ -228,7 +375,7 @@ internal sealed class WatchWindow(Plugin plugin)
             ImGui.EndCombo();
         }
         ImGui.SameLine();
-        if (ImGui.SmallButton("Preview sound"))
+        if (ImGui.Button("Preview sound"))
             plugin.PreviewAlertSound();
 
         bool flash = config.FlashIcon;
@@ -237,39 +384,46 @@ internal sealed class WatchWindow(Plugin plugin)
             config.FlashIcon = flash;
             plugin.Save();
         }
-        ImGui.Separator();
+    }
 
-        ImGui.TextUnformatted("Saved watches");
-        ImGui.SameLine();
-        if (ImGui.SmallButton("Add watch"))
+    private void DrawWatches()
+    {
+        var watches = plugin.Config.Watches;
+        ImGui.AlignTextToFramePadding();
+        DrawText("Saved watches", Accent);
+        AlignRight("+ Add watch");
+        if (ImGui.Button("+ Add watch"))
         {
-            config.Watches.Add(new ListingWatch { Enabled = false });
+            watches.Add(new ListingWatch { Enabled = false });
             plugin.Save();
         }
 
-        if (!ImGui.BeginChild("##saved-watches", Vector2.Zero, true))
-        {
-            ImGui.EndChild();
-            return;
-        }
+        if (watches.Count == 0)
+            DrawText("No saved watches.", Muted);
 
         ListingWatch? remove = null;
-        foreach (var watch in config.Watches)
+        foreach (var watch in watches)
         {
             ImGui.PushID(watch.Id.ToString());
-            if (ImGui.CollapsingHeader($"{watch.Name}###watch-header", ImGuiTreeNodeFlags.DefaultOpen) && DrawWatch(watch))
-                remove = watch;
+            var heading = watch.Enabled ? watch.Name : $"{watch.Name}  ·  Off";
+            if (ImGui.CollapsingHeader($"{heading}###watch-header", ImGuiTreeNodeFlags.DefaultOpen))
+            {
+                ImGui.Indent(10);
+                if (DrawWatch(watch))
+                    remove = watch;
+                ImGui.Unindent(10);
+                ImGui.Spacing();
+            }
             ImGui.PopID();
         }
 
         if (remove is not null)
         {
-            config.Watches.Remove(remove);
+            watches.Remove(remove);
             keywordInputs.Remove(remove.Id);
             dutyInputs.Remove(remove.Id);
             plugin.Save();
         }
-        ImGui.EndChild();
     }
 
     private bool DrawWatch(ListingWatch watch)
@@ -282,7 +436,7 @@ internal sealed class WatchWindow(Plugin plugin)
         }
         ImGui.SameLine();
         var name = watch.Name;
-        ImGui.SetNextItemWidth(230);
+        ImGui.SetNextItemWidth(Math.Min(245, ImGui.GetContentRegionAvail().X * 0.61f));
         if (ImGui.InputText("Watch name", ref name, 70))
             watch.Name = name;
         if (ImGui.IsItemDeactivatedAfterEdit())
@@ -291,7 +445,8 @@ internal sealed class WatchWindow(Plugin plugin)
             plugin.Save();
         }
 
-        ImGui.SetNextItemWidth(230);
+        bool filtersFitOnOneLine = ImGui.GetContentRegionAvail().X >= Math.Max(650, ImGui.GetFontSize() * 43);
+        ImGui.SetNextItemWidth(Math.Min(230, ImGui.GetContentRegionAvail().X * 0.66f));
         if (ImGui.BeginCombo("Category", watch.Category is { } category ? DutyCatalog.CategoryName(category) : "All Party Finder"))
         {
             if (ImGui.Selectable("All Party Finder", watch.Category is null))
@@ -305,14 +460,21 @@ internal sealed class WatchWindow(Plugin plugin)
         }
 
         if (watch.Category is { } chosenCategory)
+        {
+            if (filtersFitOnOneLine)
+                ImGui.SameLine();
             DrawDutyPicker(watch, chosenCategory);
+        }
 
         string keyword = keywordInputs.GetValueOrDefault(watch.Id, "");
-        ImGui.SetNextItemWidth(280);
+        ImGui.SetNextItemWidth(Math.Min(315, ImGui.GetContentRegionAvail().X * 0.84f));
         bool add = ImGui.InputTextWithHint("##keyword-input", "Keyword or comma-separated phrases", ref keyword, 300,
             ImGuiInputTextFlags.EnterReturnsTrue);
         ImGui.SameLine();
-        if (ImGui.SmallButton("+##add-keyword") || add)
+        bool addButton = ImGui.Button("+##add-keyword");
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Add keywords");
+        if (addButton || add)
         {
             foreach (var term in keyword.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
                          .Select(ListingWatch.Normalize))
@@ -326,26 +488,45 @@ internal sealed class WatchWindow(Plugin plugin)
         keywordInputs[watch.Id] = keyword;
 
         if (watch.Terms.Count == 0)
-            ImGui.TextDisabled("Any listing in this scope");
+            DrawText("Any listing in this scope", Muted);
         else
+            DrawKeywordChips(watch);
+
+        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.95f, 0.69f, 0.65f, 1f));
+        bool removeWatch = ImGui.SmallButton("Delete watch");
+        ImGui.PopStyleColor();
+        return removeWatch;
+    }
+
+    private void DrawKeywordChips(ListingWatch watch)
+    {
+        var style = ImGui.GetStyle();
+        float rightEdge = ImGui.GetWindowPos().X + ImGui.GetWindowContentRegionMax().X;
+        for (int index = 0; index < watch.Terms.Count; index++)
         {
-            for (int index = 0; index < watch.Terms.Count; index++)
-            {
-                ImGui.PushID(index);
-                ImGui.TextUnformatted(watch.Terms[index]);
+            string term = watch.Terms[index];
+            string label = term.Length > 28 ? term[..26] + "…" : term;
+            label += "  ×";
+            float width = ImGui.CalcTextSize(label).X + style.FramePadding.X * 2;
+            if (index > 0 && ImGui.GetItemRectMax().X + style.ItemSpacing.X + width < rightEdge)
                 ImGui.SameLine();
-                bool removeTerm = ImGui.SmallButton("Remove##keyword");
-                ImGui.PopID();
-                if (removeTerm)
-                {
-                    watch.Terms.RemoveAt(index);
-                    plugin.Save();
-                    break;
-                }
+
+            ImGui.PushID(index);
+            bool removeTerm = FilterButton(label + "###keyword", true);
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.BeginTooltip();
+                ImGui.TextUnformatted($"Remove keyword: {term}");
+                ImGui.EndTooltip();
+            }
+            ImGui.PopID();
+            if (removeTerm)
+            {
+                watch.Terms.RemoveAt(index);
+                plugin.Save();
+                break;
             }
         }
-
-        return ImGui.SmallButton("Delete watch");
     }
 
     private void SetCategory(ListingWatch watch, DutyCategory? category)
@@ -368,7 +549,7 @@ internal sealed class WatchWindow(Plugin plugin)
             _ => $"{watch.Duties.Count} duties selected",
         };
 
-        ImGui.SetNextItemWidth(300);
+        ImGui.SetNextItemWidth(Math.Min(300, ImGui.GetContentRegionAvail().X * 0.75f));
         if (!ImGui.BeginCombo("Duties", preview, ImGuiComboFlags.HeightLarge))
             return;
 
